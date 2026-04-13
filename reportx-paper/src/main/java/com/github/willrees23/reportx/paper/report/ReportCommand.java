@@ -11,11 +11,13 @@ import com.github.willrees23.solo.command.CommandInfo;
 import com.github.willrees23.solo.command.SoloCommand;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 @CommandInfo(
@@ -53,22 +55,42 @@ public final class ReportCommand extends SoloCommand {
         }
 
         String targetName = args[0];
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) {
+        boolean allowOffline = snapshot.config().reports().allowOfflinePlayers();
+        boolean allowSelf = snapshot.config().reports().allowSelfReports();
+
+        UUID targetId;
+        String targetDisplay;
+        Player onlineTarget = Bukkit.getPlayerExact(targetName);
+        if (onlineTarget != null) {
+            targetId = onlineTarget.getUniqueId();
+            targetDisplay = onlineTarget.getName();
+        } else if (allowOffline) {
+            @SuppressWarnings("deprecation")
+            OfflinePlayer offline = Bukkit.getOfflinePlayer(targetName);
+            if (offline.getName() == null && !offline.hasPlayedBefore()) {
+                sendMessage(player, messages, "report.invalid-target",
+                        Map.of("player", targetName),
+                        "<red>That player could not be found.");
+                return;
+            }
+            targetId = offline.getUniqueId();
+            targetDisplay = offline.getName() != null ? offline.getName() : targetName;
+        } else {
             sendMessage(player, messages, "report.invalid-target",
                     Map.of("player", targetName),
                     "<red>That player could not be found.");
             return;
         }
 
-        if (target.getUniqueId().equals(player.getUniqueId())) {
+        if (targetId.equals(player.getUniqueId()) && !allowSelf) {
             sendMessage(player, messages, "report.self-report", Map.of(),
                     "<red>You cannot report yourself.");
             return;
         }
 
         String reason = args.length > 1 ? joinFrom(args, 1) : null;
-        ReportContext context = new ReportContext(target, reason, locationCoords(player), serverName(player));
+        ReportContext context = new ReportContext(
+                targetId, targetDisplay, reason, locationCoords(player), serverName(player));
         onReport.accept(player, context);
     }
 
@@ -118,6 +140,7 @@ public final class ReportCommand extends SoloCommand {
         return prefix + body;
     }
 
-    public record ReportContext(Player target, String reason, Coords reporterCoords, String serverName) {
+    public record ReportContext(UUID targetId, String targetName, String reason,
+                                Coords reporterCoords, String serverName) {
     }
 }

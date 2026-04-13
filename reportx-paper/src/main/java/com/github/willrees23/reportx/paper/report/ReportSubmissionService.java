@@ -35,7 +35,7 @@ public final class ReportSubmissionService {
     public ReportSubmissionResult submit(ReportSubmissionRequest request,
                                          ConfigYaml config,
                                          CategoriesYaml categoriesConfig) {
-        if (request.reporterId().equals(request.targetId())) {
+        if (request.reporterId().equals(request.targetId()) && !config.reports().allowSelfReports()) {
             return new ReportSubmissionResult.SelfReport();
         }
         if (!isKnownCategory(request.category(), categoriesConfig)) {

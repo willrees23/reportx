@@ -77,7 +77,7 @@ public final class ReportModule extends Module {
         ReportXConfig snapshot = configModule.snapshot();
         ReportSubmissionRequest request = new ReportSubmissionRequest(
                 reporter.getUniqueId(),
-                context.target().getUniqueId(),
+                context.targetId(),
                 category,
                 context.reason(),
                 context.serverName(),
@@ -94,8 +94,8 @@ public final class ReportModule extends Module {
                             ReportCommand.ReportContext context,
                             String category) {
         Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("player", context.target().getName());
-        placeholders.put("target", context.target().getName());
+        placeholders.put("player", context.targetName());
+        placeholders.put("target", context.targetName());
         placeholders.put("category", category);
 
         switch (result) {
