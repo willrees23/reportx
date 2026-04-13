@@ -1,0 +1,7 @@
+name: ReportX
+version: ${project.version}
+main: com.github.willrees23.reportx.paper.ReportXPlugin
+api-version: '1.21'
+authors: [willrees23]
+description: Advanced-but-simple moderation reporting plugin.
+website: https://github.com/willrees23/reportx
