@@ -133,14 +133,11 @@ public final class SqliteStorage implements AutoCloseable {
 
     private List<Migration> loadMigrations() throws IOException {
         List<Migration> migrations = new ArrayList<>();
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        if (loader == null) {
-            loader = SqliteStorage.class.getClassLoader();
-        }
+        // Use the classloader that loaded SqliteStorage itself. On a Paper server the
+        // thread context classloader may not see plugin resources, so we cannot rely
+        // on Thread.currentThread().getContextClassLoader() here.
+        ClassLoader loader = SqliteStorage.class.getClassLoader();
 
-        // SQLite module ships one migration file today; scan classpath explicitly.
-        // We read the file list from a bundled manifest to avoid fragile directory walking.
-        // If the manifest is absent (tests / alt packaging), fall back to known file.
         List<String> files = readMigrationsManifest(loader);
         if (files.isEmpty()) {
             URL singleFile = loader.getResource(MIGRATIONS_RESOURCE_ROOT + "/V1__initial_schema.sql");
@@ -151,12 +148,17 @@ public final class SqliteStorage implements AutoCloseable {
         for (String file : files) {
             URL resource = loader.getResource(MIGRATIONS_RESOURCE_ROOT + "/" + file);
             if (resource == null) {
+                LOG.warn("Migration file '{}' listed but not found on the classpath; skipping.", file);
                 continue;
             }
             int version = parseVersion(file);
             String name = parseName(file);
             String sql = readResource(resource);
             migrations.add(new Migration(version, name, sql));
+        }
+        if (migrations.isEmpty()) {
+            LOG.warn("No SQLite migrations found on the classpath under {}/. The schema will not be created.",
+                    MIGRATIONS_RESOURCE_ROOT);
         }
         migrations.sort((a, b) -> Integer.compare(a.version(), b.version()));
         return migrations;
