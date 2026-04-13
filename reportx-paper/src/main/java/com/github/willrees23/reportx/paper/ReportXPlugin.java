@@ -6,6 +6,7 @@ import com.github.willrees23.reportx.paper.modules.ConfigModule;
 import com.github.willrees23.reportx.paper.modules.EvidenceModule;
 import com.github.willrees23.reportx.paper.modules.LogBufferModule;
 import com.github.willrees23.reportx.paper.modules.MessagingModule;
+import com.github.willrees23.reportx.paper.modules.NoteModule;
 import com.github.willrees23.reportx.paper.modules.ReportModule;
 import com.github.willrees23.reportx.paper.modules.ReputationModule;
 import com.github.willrees23.reportx.paper.modules.StorageModule;
@@ -24,6 +25,7 @@ public final class ReportXPlugin extends SoloPlugin {
         manager.register(new CaseModule());
         manager.register(new ReputationModule());
         manager.register(new EvidenceModule());
+        manager.register(new NoteModule());
         manager.register(new ReportModule());
     }
 }
