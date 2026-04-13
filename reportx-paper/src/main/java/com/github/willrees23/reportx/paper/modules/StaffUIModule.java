@@ -28,8 +28,11 @@ import com.github.willrees23.reportx.paper.staff.StaffSessionRegistry;
 import com.github.willrees23.reportx.paper.staff.commands.ClaimedReportsCommand;
 import com.github.willrees23.reportx.paper.staff.commands.ReportHandleCommand;
 import com.github.willrees23.reportx.paper.staff.commands.ReportsCommand;
+import com.github.willrees23.reportx.paper.staff.gui.AuditLogGuiFactory;
 import com.github.willrees23.reportx.paper.staff.gui.CaseFileGuiFactory;
 import com.github.willrees23.reportx.paper.staff.gui.ClaimedQueueGuiFactory;
+import com.github.willrees23.reportx.paper.staff.gui.EvidenceListGuiFactory;
+import com.github.willrees23.reportx.paper.staff.gui.NotesListGuiFactory;
 import com.github.willrees23.reportx.paper.staff.gui.StaffCategoryPickerGuiFactory;
 import com.github.willrees23.reportx.paper.staff.gui.UnclaimedQueueGuiFactory;
 import com.github.willrees23.reportx.paper.text.Text;
@@ -186,23 +189,7 @@ public final class StaffUIModule extends Module {
 
     private void handleClaimedQueueClick(Player viewer, Case caseValue) {
         viewer.closeInventory();
-        sendAuditDump(viewer, caseValue);
         openCaseFile(viewer, caseValue);
-    }
-
-    private void sendAuditDump(Player viewer, Case caseValue) {
-        List<AuditEntry> entries = auditRepository.findByCase(caseValue.id());
-        if (entries.isEmpty()) {
-            send(viewer, "staff.audit-empty", Map.of("id", Ids.shortCaseId(caseValue.id())),
-                    "<gray>No audit entries for case <white>#{id}</white>.");
-            return;
-        }
-        sendRaw(viewer, "<gold>=== Audit Log — case #" + Ids.shortCaseId(caseValue.id()) + " ===");
-        for (AuditEntry entry : entries) {
-            String actor = entry.actorId() == null ? "system" : lookupName(entry.actorId());
-            sendRaw(viewer, "<gray>[" + LOG_TIME.format(entry.createdAt()) + "] <yellow>"
-                    + entry.eventType() + " <gray>by <white>" + actor);
-        }
     }
 
     private void openStaffCategoryPicker(Player viewer) {
@@ -448,16 +435,44 @@ public final class StaffUIModule extends Module {
 
         @Override
         public void onViewEvidence() {
-            viewer.closeInventory();
             List<Evidence> evidence = evidenceService.listForCase(caseValue.id());
-            if (evidence.isEmpty()) {
-                send(viewer, "staff.evidence-empty-list", Map.of(),
-                        "<gray>No evidence attached yet.");
+            Gui gui = EvidenceListGuiFactory.build(
+                    configModule.snapshot().gui(),
+                    caseValue.id(),
+                    evidence,
+                    target -> handleEvidenceDelete(target),
+                    () -> openCaseFile(viewer, caseValue));
+            openGui(viewer, gui);
+        }
+
+        private void handleEvidenceDelete(Evidence evidence) {
+            boolean adminOverride = viewer.hasPermission("reportx.staff.evidence.delete.any");
+            if (!adminOverride && !viewer.hasPermission("reportx.staff.evidence.delete.own")) {
+                send(viewer, "errors.no-permission", Map.of(),
+                        "<red>You don't have permission for that.");
                 return;
             }
-            sendRaw(viewer, "<gold>=== Evidence ===");
-            for (Evidence e : evidence) {
-                sendRaw(viewer, "<yellow>" + e.label() + "<gray>: <white>" + e.content());
+            EvidenceOutcome outcome = evidenceService.delete(
+                    evidence.id(), viewer.getUniqueId(), adminOverride);
+            switch (outcome) {
+                case EvidenceOutcome.Success ignored -> {
+                    send(viewer, "staff.evidence-deleted",
+                            Map.of("label", evidence.label() == null ? "" : evidence.label()),
+                            "<green>Evidence <white>{label}</white> deleted.");
+                    onViewEvidence();
+                }
+                case EvidenceOutcome.NotAuthor ignored ->
+                        send(viewer, "errors.not-evidence-author", Map.of(),
+                                "<red>You can only delete your own evidence.");
+                case EvidenceOutcome.NotFound ignored ->
+                        send(viewer, "errors.unexpected", Map.of(),
+                                "<red>That evidence no longer exists.");
+                case EvidenceOutcome.UrlRequired ignored ->
+                        send(viewer, "errors.unexpected", Map.of(),
+                                "<red>Unexpected evidence error.");
+                case EvidenceOutcome.EmptyContent ignored ->
+                        send(viewer, "errors.unexpected", Map.of(),
+                                "<red>Unexpected evidence error.");
             }
         }
 
@@ -488,18 +503,86 @@ public final class StaffUIModule extends Module {
 
         @Override
         public void onViewNotes() {
-            viewer.closeInventory();
             List<Note> notes = noteService.listForCase(caseValue.id());
-            if (notes.isEmpty()) {
-                send(viewer, "staff.notes-empty-list", Map.of(),
-                        "<gray>No notes on this case yet.");
+            Gui gui = NotesListGuiFactory.build(
+                    configModule.snapshot().gui(),
+                    caseValue.id(),
+                    notes,
+                    note -> handleNoteEdit(note),
+                    note -> handleNoteDelete(note),
+                    () -> openCaseFile(viewer, caseValue));
+            openGui(viewer, gui);
+        }
+
+        private void handleNoteEdit(Note note) {
+            if (!note.authorId().equals(viewer.getUniqueId())
+                    || !viewer.hasPermission("reportx.staff.note.edit.own")) {
+                send(viewer, "errors.not-note-author", Map.of(),
+                        "<red>You can only edit your own notes.");
                 return;
             }
-            sendRaw(viewer, "<gold>=== Notes ===");
-            for (Note n : notes) {
-                String author = lookupName(n.authorId());
-                sendRaw(viewer, "<yellow>" + author + "<gray>: <white>" + n.body());
+            viewer.closeInventory();
+            chatPromptService.prompt(viewer,
+                    Text.parse("<yellow>Type the new note body in chat (or 'cancel'):"),
+                    response -> {
+                        NoteOutcome outcome = noteService.edit(note.id(), response, viewer.getUniqueId());
+                        switch (outcome) {
+                            case NoteOutcome.Success ignored ->
+                                    send(viewer, "staff.note-edited", Map.of(),
+                                            "<green>Note updated.");
+                            case NoteOutcome.EmptyBody ignored ->
+                                    send(viewer, "staff.note-empty", Map.of(),
+                                            "<red>Note cannot be empty.");
+                            case NoteOutcome.NotAuthor ignored ->
+                                    send(viewer, "errors.not-note-author", Map.of(),
+                                            "<red>You can only edit your own notes.");
+                            case NoteOutcome.NotFound ignored ->
+                                    send(viewer, "errors.unexpected", Map.of(),
+                                            "<red>That note no longer exists.");
+                        }
+                        onViewNotes();
+                    },
+                    () -> {
+                        send(viewer, "staff.cancelled", Map.of(), "<gray>Cancelled.");
+                        onViewNotes();
+                    });
+        }
+
+        private void handleNoteDelete(Note note) {
+            boolean adminOverride = viewer.hasPermission("reportx.staff.note.delete.any");
+            if (!adminOverride && !note.authorId().equals(viewer.getUniqueId())) {
+                send(viewer, "errors.not-note-author", Map.of(),
+                        "<red>You can only delete your own notes.");
+                return;
             }
+            NoteOutcome outcome = noteService.delete(note.id(), viewer.getUniqueId(), adminOverride);
+            switch (outcome) {
+                case NoteOutcome.Success ignored -> {
+                    send(viewer, "staff.note-deleted", Map.of(),
+                            "<green>Note deleted.");
+                    onViewNotes();
+                }
+                case NoteOutcome.NotAuthor ignored ->
+                        send(viewer, "errors.not-note-author", Map.of(),
+                                "<red>You can only delete your own notes.");
+                case NoteOutcome.NotFound ignored ->
+                        send(viewer, "errors.unexpected", Map.of(),
+                                "<red>That note no longer exists.");
+                case NoteOutcome.EmptyBody ignored ->
+                        send(viewer, "errors.unexpected", Map.of(),
+                                "<red>Unexpected note error.");
+            }
+        }
+
+        @Override
+        public void onViewAuditLog() {
+            List<AuditEntry> entries = auditRepository.findByCase(caseValue.id());
+            Gui gui = AuditLogGuiFactory.build(
+                    configModule.snapshot().gui(),
+                    caseValue.id(),
+                    entries,
+                    () -> openCaseFile(viewer, caseValue));
+            openGui(viewer, gui);
         }
 
         @Override
