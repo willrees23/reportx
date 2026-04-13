@@ -132,6 +132,12 @@ case-file:
       slot: 24
       material: WRITTEN_BOOK
       display: "<yellow>View notes <gray>({note_count})"
+    view-audit-log:
+      slot: 25
+      material: KNOWLEDGE_BOOK
+      display: "<gold>View audit log"
+      lore:
+        - "<gray>State changes, claims, evidence, notes."
     release:
       slot: 39
       material: HOPPER
