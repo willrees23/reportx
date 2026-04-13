@@ -38,6 +38,8 @@ public final class CaseFileGuiFactory {
 
         void onViewNotes();
 
+        void onViewAuditLog();
+
         void onRelease();
 
         void onHandoff();
@@ -159,6 +161,7 @@ public final class CaseFileGuiFactory {
         addButton(builder, buttonsSpec, "view-evidence", placeholders, click -> handler.onViewEvidence());
         addButton(builder, buttonsSpec, "add-note", placeholders, click -> handler.onAddNote());
         addButton(builder, buttonsSpec, "view-notes", placeholders, click -> handler.onViewNotes());
+        addButton(builder, buttonsSpec, "view-audit-log", placeholders, click -> handler.onViewAuditLog());
         addButton(builder, buttonsSpec, "release", placeholders, click -> handler.onRelease());
         addButton(builder, buttonsSpec, "handoff", placeholders, click -> handler.onHandoff());
         addButton(builder, buttonsSpec, "resolve-accept", placeholders, click -> handler.onResolveAccept());
