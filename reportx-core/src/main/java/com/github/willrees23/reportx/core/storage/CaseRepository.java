@@ -18,6 +18,8 @@ public interface CaseRepository {
 
     Optional<Case> findOpenDedupCandidate(UUID targetId, String category, Instant notBefore);
 
+    Optional<Case> findOpenDedupCandidateAnyCategory(UUID targetId, Instant notBefore);
+
     List<Case> findByStatus(CaseStatus status);
 
     Optional<Case> findOldestUnclaimedByCategory(String category);
