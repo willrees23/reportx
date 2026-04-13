@@ -2,12 +2,14 @@ package com.github.willrees23.reportx.paper.modules;
 
 import com.github.willrees23.reportx.core.config.MessagesYaml;
 import com.github.willrees23.reportx.core.config.ReportXConfig;
+import com.github.willrees23.reportx.core.model.AuditEntry;
 import com.github.willrees23.reportx.core.model.Case;
 import com.github.willrees23.reportx.core.model.CaseStatus;
 import com.github.willrees23.reportx.core.model.Evidence;
 import com.github.willrees23.reportx.core.model.LogBufferEntry;
 import com.github.willrees23.reportx.core.model.Note;
 import com.github.willrees23.reportx.core.model.ReputationSnapshot;
+import com.github.willrees23.reportx.core.storage.AuditRepository;
 import com.github.willrees23.reportx.core.storage.CaseRepository;
 import com.github.willrees23.reportx.core.storage.LogBufferRepository;
 import com.github.willrees23.reportx.core.storage.ReportRepository;
@@ -23,9 +25,12 @@ import com.github.willrees23.reportx.paper.reputation.ReputationService;
 import com.github.willrees23.reportx.paper.staff.ChatPromptService;
 import com.github.willrees23.reportx.paper.staff.StaffSession;
 import com.github.willrees23.reportx.paper.staff.StaffSessionRegistry;
+import com.github.willrees23.reportx.paper.staff.commands.ClaimedReportsCommand;
 import com.github.willrees23.reportx.paper.staff.commands.ReportHandleCommand;
 import com.github.willrees23.reportx.paper.staff.commands.ReportsCommand;
 import com.github.willrees23.reportx.paper.staff.gui.CaseFileGuiFactory;
+import com.github.willrees23.reportx.paper.staff.gui.ClaimedQueueGuiFactory;
+import com.github.willrees23.reportx.paper.staff.gui.StaffCategoryPickerGuiFactory;
 import com.github.willrees23.reportx.paper.staff.gui.UnclaimedQueueGuiFactory;
 import com.github.willrees23.reportx.paper.text.Text;
 import com.github.willrees23.solo.gui.Gui;
@@ -55,6 +60,7 @@ public final class StaffUIModule extends Module {
     private CaseRepository caseRepository;
     private ReportRepository reportRepository;
     private LogBufferRepository logBufferRepository;
+    private AuditRepository auditRepository;
     private CaseService caseService;
     private EvidenceService evidenceService;
     private NoteService noteService;
@@ -79,6 +85,7 @@ public final class StaffUIModule extends Module {
         this.caseRepository = registry.require(CaseRepository.class);
         this.reportRepository = registry.require(ReportRepository.class);
         this.logBufferRepository = registry.require(LogBufferRepository.class);
+        this.auditRepository = registry.require(AuditRepository.class);
         this.caseService = registry.require(CaseService.class);
         this.evidenceService = registry.require(EvidenceService.class);
         this.noteService = registry.require(NoteService.class);
@@ -89,7 +96,8 @@ public final class StaffUIModule extends Module {
 
         registerListener(chatPromptService);
         registerCommand(new ReportsCommand(this::openQueue));
-        registerCommand(new ReportHandleCommand(this::openCurrent));
+        registerCommand(new ClaimedReportsCommand(this::openClaimedQueue));
+        registerCommand(new ReportHandleCommand(new HandleHandlersImpl()));
 
         registry.register(StaffSessionRegistry.class, sessionRegistry);
         registry.register(ChatPromptService.class, chatPromptService);
@@ -164,6 +172,178 @@ public final class StaffUIModule extends Module {
             return;
         }
         openCaseFile(viewer, caseValue.get());
+    }
+
+    private void openClaimedQueue(Player viewer) {
+        ReportXConfig snapshot = configModule.snapshot();
+        Gui gui = ClaimedQueueGuiFactory.build(
+                snapshot.gui(),
+                caseRepository,
+                reportRepository,
+                value -> handleClaimedQueueClick(viewer, value));
+        openGui(viewer, gui);
+    }
+
+    private void handleClaimedQueueClick(Player viewer, Case caseValue) {
+        viewer.closeInventory();
+        sendAuditDump(viewer, caseValue);
+        openCaseFile(viewer, caseValue);
+    }
+
+    private void sendAuditDump(Player viewer, Case caseValue) {
+        List<AuditEntry> entries = auditRepository.findByCase(caseValue.id());
+        if (entries.isEmpty()) {
+            send(viewer, "staff.audit-empty", Map.of("id", Ids.shortCaseId(caseValue.id())),
+                    "<gray>No audit entries for case <white>#{id}</white>.");
+            return;
+        }
+        sendRaw(viewer, "<gold>=== Audit Log — case #" + Ids.shortCaseId(caseValue.id()) + " ===");
+        for (AuditEntry entry : entries) {
+            String actor = entry.actorId() == null ? "system" : lookupName(entry.actorId());
+            sendRaw(viewer, "<gray>[" + LOG_TIME.format(entry.createdAt()) + "] <yellow>"
+                    + entry.eventType() + " <gray>by <white>" + actor);
+        }
+    }
+
+    private void openStaffCategoryPicker(Player viewer) {
+        ReportXConfig snapshot = configModule.snapshot();
+        Gui gui = StaffCategoryPickerGuiFactory.build(
+                snapshot.gui(),
+                snapshot.categories(),
+                category -> caseRepository.findByStatus(CaseStatus.UNCLAIMED).stream()
+                        .filter(c -> c.category().equalsIgnoreCase(category))
+                        .toList()
+                        .size(),
+                category -> handlePickerClick(viewer, category));
+        openGui(viewer, gui);
+    }
+
+    private void handlePickerClick(Player viewer, String categoryId) {
+        Optional<Case> oldest = caseRepository.findOldestUnclaimedByCategory(categoryId);
+        if (oldest.isEmpty()) {
+            send(viewer, "staff.no-reports-in-category",
+                    Map.of("category", categoryId),
+                    "<red>No reports available in <white>{category}</white>.");
+            return;
+        }
+        handleQueueClick(viewer, oldest.get());
+    }
+
+    private final class HandleHandlersImpl implements ReportHandleCommand.Handlers {
+
+        @Override
+        public void openDefault(Player viewer) {
+            if (sessionRegistry.isHandling(viewer.getUniqueId())) {
+                openCurrent(viewer);
+            } else {
+                openStaffCategoryPicker(viewer);
+            }
+        }
+
+        @Override
+        public void release(Player viewer) {
+            Optional<StaffSession> session = sessionRegistry.currentFor(viewer.getUniqueId());
+            if (session.isEmpty()) {
+                send(viewer, "errors.not-handling", Map.of(),
+                        "<red>You aren't currently handling a case.");
+                return;
+            }
+            CaseLifecycleOutcome outcome = caseService.release(session.get().caseId(), viewer.getUniqueId());
+            if (outcome instanceof CaseLifecycleOutcome.Success success) {
+                sessionRegistry.end(viewer.getUniqueId());
+                send(viewer, "staff.case-released",
+                        Map.of("id", Ids.shortCaseId(success.caseValue().id()),
+                                "staff", viewer.getName()),
+                        "<aqua>{staff}</aqua> released case <gray>#{id}</gray>.");
+            } else {
+                send(viewer, "errors.unexpected", Map.of(),
+                        "<red>Could not release that case.");
+            }
+        }
+
+        @Override
+        public void handoff(Player viewer, String targetName) {
+            Optional<StaffSession> session = sessionRegistry.currentFor(viewer.getUniqueId());
+            if (session.isEmpty()) {
+                send(viewer, "errors.not-handling", Map.of(),
+                        "<red>You aren't currently handling a case.");
+                return;
+            }
+            Player target = Bukkit.getPlayerExact(targetName);
+            if (target == null) {
+                send(viewer, "errors.target-offline", Map.of("name", targetName),
+                        "<red>That staff member is not online.");
+                return;
+            }
+            UUID caseId = session.get().caseId();
+            CaseLifecycleOutcome outcome = caseService.handoff(caseId, viewer.getUniqueId(), target.getUniqueId());
+            if (outcome instanceof CaseLifecycleOutcome.Success success) {
+                sessionRegistry.end(viewer.getUniqueId());
+                sessionRegistry.start(target.getUniqueId(), success.caseValue().id());
+                send(viewer, "staff.handoff-sent",
+                        Map.of("to", target.getName(), "id", Ids.shortCaseId(caseId)),
+                        "<aqua>Handed off case <gray>#{id}</gray> to <white>{to}</white>.");
+                send(target, "staff.handoff-received",
+                        Map.of("from", viewer.getName(), "id", Ids.shortCaseId(caseId)),
+                        "<aqua>{from}</aqua> handed case <gray>#{id}</gray> to you.");
+            } else {
+                send(viewer, "errors.unexpected", Map.of(),
+                        "<red>Could not hand off that case.");
+            }
+        }
+
+        @Override
+        public void reopen(Player viewer, String shortCaseId) {
+            Optional<Case> match = findCaseByShortId(shortCaseId);
+            if (match.isEmpty()) {
+                send(viewer, "errors.case-not-found",
+                        Map.of("id", shortCaseId),
+                        "<red>No case matches <white>#{id}</white>.");
+                return;
+            }
+            CaseLifecycleOutcome outcome = caseService.reopen(
+                    match.get().id(), viewer.getUniqueId(), "reopened via /rh reopen");
+            if (outcome instanceof CaseLifecycleOutcome.Success success) {
+                send(viewer, "staff.reopened",
+                        Map.of("id", Ids.shortCaseId(success.caseValue().id()),
+                                "staff", viewer.getName()),
+                        "<aqua>{staff}</aqua> reopened case <gray>#{id}</gray>.");
+            } else if (outcome instanceof CaseLifecycleOutcome.NotResolved) {
+                send(viewer, "errors.case-not-resolved",
+                        Map.of("id", shortCaseId),
+                        "<red>Case <white>#{id}</white> isn't resolved, so it can't be reopened.");
+            } else {
+                send(viewer, "errors.unexpected", Map.of(),
+                        "<red>Could not reopen that case.");
+            }
+        }
+
+        @Override
+        public void unknownSubcommand(Player viewer, String input) {
+            send(viewer, "staff.handle-unknown-subcommand",
+                    Map.of("input", input),
+                    "<red>Unknown subcommand: <white>{input}</white>. Try /rh release | handoff <staff> | reopen <case-id>.");
+        }
+
+        @Override
+        public void usage(Player viewer, String key, String fallback) {
+            send(viewer, key, Map.of(), fallback);
+        }
+    }
+
+    private Optional<Case> findCaseByShortId(String shortId) {
+        if (shortId == null || shortId.length() < 4) {
+            return Optional.empty();
+        }
+        String prefix = shortId.toLowerCase();
+        for (CaseStatus status : new CaseStatus[]{CaseStatus.RESOLVED_ACCEPTED, CaseStatus.RESOLVED_DENIED}) {
+            for (Case candidate : caseRepository.findByStatus(status)) {
+                if (Ids.shortCaseId(candidate.id()).toLowerCase().startsWith(prefix)) {
+                    return Optional.of(candidate);
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private void openCaseFile(Player viewer, Case caseValue) {
