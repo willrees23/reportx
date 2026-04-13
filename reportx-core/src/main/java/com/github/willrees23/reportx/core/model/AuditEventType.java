@@ -1,0 +1,18 @@
+package com.github.willrees23.reportx.core.model;
+
+public enum AuditEventType {
+    CASE_CREATED,
+    REPORT_MERGED,
+    CASE_CLAIMED,
+    CASE_RELEASED,
+    CASE_HANDED_OFF,
+    EVIDENCE_ADDED,
+    EVIDENCE_EDITED,
+    EVIDENCE_DELETED,
+    NOTE_ADDED,
+    NOTE_EDITED,
+    NOTE_DELETED,
+    CASE_RESOLVED_ACCEPTED,
+    CASE_RESOLVED_DENIED,
+    CASE_REOPENED
+}

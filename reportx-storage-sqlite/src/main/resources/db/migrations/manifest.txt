@@ -1,0 +1,2 @@
+# List of migration files in order. One filename per line. Lines starting with # are ignored.
+V1__initial_schema.sql
