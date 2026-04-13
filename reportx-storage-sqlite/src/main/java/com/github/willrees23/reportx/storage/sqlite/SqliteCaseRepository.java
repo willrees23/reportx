@@ -100,6 +100,23 @@ public final class SqliteCaseRepository implements CaseRepository {
     }
 
     @Override
+    public Optional<Case> findOpenDedupCandidateAnyCategory(UUID targetId, Instant notBefore) {
+        String sql = "SELECT " + SELECT_COLUMNS + " FROM cases " +
+                "WHERE target_id = ? AND status IN ('UNCLAIMED', 'CLAIMED') " +
+                "AND created_at >= ? ORDER BY created_at DESC LIMIT 1";
+        try (Connection connection = storage.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, targetId.toString());
+            statement.setLong(2, notBefore.toEpochMilli());
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+            }
+        } catch (SQLException ex) {
+            throw new StorageException("Failed to find any-category dedup candidate", ex);
+        }
+    }
+
+    @Override
     public List<Case> findByStatus(CaseStatus status) {
         String sql = "SELECT " + SELECT_COLUMNS + " FROM cases WHERE status = ? ORDER BY created_at";
         try (Connection connection = storage.getConnection();

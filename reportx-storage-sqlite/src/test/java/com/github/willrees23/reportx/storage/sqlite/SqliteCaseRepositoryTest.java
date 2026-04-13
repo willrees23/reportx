@@ -77,6 +77,28 @@ class SqliteCaseRepositoryTest extends SqliteTestBase {
         assertThat(candidate).map(Case::id).contains(matchId);
     }
 
+    @Test
+    void findOpenDedupCandidateAnyCategory_ignoresCategoryButRespectsTargetWindowAndStatus() {
+        SqliteCaseRepository repo = storage.caseRepository();
+        UUID target = UUID.randomUUID();
+        Instant now = Instant.parse("2026-04-13T12:00:00Z");
+
+        UUID hackingId = UUID.randomUUID();
+        repo.insert(new Case(hackingId, target, "hacking", CaseStatus.UNCLAIMED,
+                null, null, null, null, null, now.minusSeconds(60), now.minusSeconds(60)));
+
+        UUID chatId = UUID.randomUUID();
+        repo.insert(new Case(chatId, target, "chat", CaseStatus.UNCLAIMED,
+                null, null, null, null, null, now, now));
+
+        UUID resolvedId = UUID.randomUUID();
+        repo.insert(new Case(resolvedId, target, "chat", CaseStatus.RESOLVED_ACCEPTED,
+                null, null, null, null, null, now.minusSeconds(10), now.minusSeconds(10)));
+
+        Optional<Case> candidate = repo.findOpenDedupCandidateAnyCategory(target, now.minusSeconds(300));
+        assertThat(candidate).map(Case::id).contains(chatId);
+    }
+
     private UUID insertUnclaimed(SqliteCaseRepository repo, String category, Instant createdAt) {
         UUID id = UUID.randomUUID();
         repo.insert(new Case(id, UUID.randomUUID(), category, CaseStatus.UNCLAIMED,
