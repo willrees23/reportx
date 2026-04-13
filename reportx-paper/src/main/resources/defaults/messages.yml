@@ -23,3 +23,13 @@ errors:
   player-only: "<red>That command can only be used by a player."
   not-handling: "<red>You aren't currently handling a case."
   already-handling: "<red>You are already handling case <gray>#{id}</gray>. Resolve or release it first."
+
+reportx:
+  about-name: "<aqua><bold>{name}</bold> <gray>v<white>{version}</white>"
+  about-author: "<gray>by <white>{author}"
+  about-description: "<gray>{description}"
+  about-website: "<gray>{website}"
+  about-hint: "<gray>Run <white>/reportx reload</white> to re-read configs."
+  unknown-subcommand: "<red>Unknown subcommand: <white>{input}</white>. Try /reportx [reload]."
+  reload-ok: "<green>ReportX configuration reloaded in <white>{ms}ms</white>."
+  reload-failed: "<red>Reload failed: <white>{error}</white>. Check the server log."
