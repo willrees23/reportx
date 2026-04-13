@@ -1,0 +1,25 @@
+# ReportX — user-facing strings.
+# Supports MiniMessage tags (<red>, <bold>, etc) AND legacy &-codes (&c, &l).
+prefix: "<gray>[<aqua>ReportX</aqua>]</gray> "
+
+report:
+  submitted: "<green>Your report has been submitted. Thank you."
+  on-cooldown: "<red>Please wait {seconds}s before reporting again."
+  resolved-notification: "<green>Thanks — a report you filed has been actioned."
+  invalid-target: "<red>That player could not be found."
+  self-report: "<red>You cannot report yourself."
+
+staff:
+  new-report: "<yellow>New report filed against <white>{target}</white> (<gray>{category}</gray>)."
+  case-claimed: "<aqua>{staff}</aqua> claimed case <gray>#{id}</gray>."
+  case-released: "<aqua>{staff}</aqua> released case <gray>#{id}</gray>."
+  handoff: "<aqua>{from}</aqua> handed off case <gray>#{id}</gray> to <aqua>{to}</aqua>."
+  resolve-accepted: "<green>Case <gray>#{id}</gray> resolved as accepted."
+  resolve-denied: "<red>Case <gray>#{id}</gray> resolved as denied."
+  reopened: "<aqua>{staff}</aqua> reopened case <gray>#{id}</gray>."
+
+errors:
+  no-permission: "<red>You don't have permission for that."
+  player-only: "<red>That command can only be used by a player."
+  not-handling: "<red>You aren't currently handling a case."
+  already-handling: "<red>You are already handling case <gray>#{id}</gray>. Resolve or release it first."

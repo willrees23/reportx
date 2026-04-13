@@ -1,0 +1,10 @@
+# ReportX — cross-server messaging.
+# transport: local | redis
+# Use 'local' for single-server. Use 'redis' for proxy networks.
+transport: local
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  channel-prefix: reportx
