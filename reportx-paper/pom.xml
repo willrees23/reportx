@@ -19,6 +19,16 @@
         </dependency>
 
         <dependency>
+            <groupId>com.github.willrees23.reportx</groupId>
+            <artifactId>reportx-storage-sqlite</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.willrees23.reportx</groupId>
+            <artifactId>reportx-messaging-local</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
         </dependency>
