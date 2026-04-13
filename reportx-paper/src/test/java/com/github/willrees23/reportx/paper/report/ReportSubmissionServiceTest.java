@@ -34,7 +34,7 @@ class ReportSubmissionServiceTest {
     private static final Instant NOW = Instant.parse("2026-04-13T12:00:00Z");
     private static final ConfigYaml CONFIG = new ConfigYaml(
             new ConfigYaml.DedupConfig(true, 300, true, true),
-            new ConfigYaml.ReportsConfig(60, 20, 0, false),
+            new ConfigYaml.ReportsConfig(60, 20, 0, false, false, false),
             new ConfigYaml.HandleConfig(2, 15),
             new ConfigYaml.GuiConfig(new ConfigYaml.ClickSoundConfig(true, "UI_BUTTON_CLICK", 1.0, 1.0)),
             new ConfigYaml.EvidenceConfig(false),
@@ -118,6 +118,21 @@ class ReportSubmissionServiceTest {
     }
 
     @Test
+    void selfReport_isAcceptedWhenAllowSelfReportsTrue() {
+        ConfigYaml allowingSelf = new ConfigYaml(
+                CONFIG.dedup(),
+                new ConfigYaml.ReportsConfig(60, 20, 0, false, false, true),
+                CONFIG.handle(), CONFIG.gui(), CONFIG.evidence(), CONFIG.logs(), CONFIG.proxy());
+        UUID reporter = UUID.randomUUID();
+
+        ReportSubmissionResult result = service.submit(
+                request(reporter, reporter, "chat", null), allowingSelf, CATEGORIES);
+
+        assertThat(result).isInstanceOf(ReportSubmissionResult.Success.class);
+        assertThat(reports.byId).hasSize(1);
+    }
+
+    @Test
     void unknownCategoryIsRejected() {
         ReportSubmissionRequest request = request(UUID.randomUUID(), UUID.randomUUID(), "imaginary", null);
 
@@ -145,7 +160,7 @@ class ReportSubmissionServiceTest {
     void requireReason_rejectsBlankDetail() {
         ConfigYaml requiringReason = new ConfigYaml(
                 CONFIG.dedup(),
-                new ConfigYaml.ReportsConfig(60, 20, 0, true),
+                new ConfigYaml.ReportsConfig(60, 20, 0, true, false, false),
                 CONFIG.handle(), CONFIG.gui(), CONFIG.evidence(), CONFIG.logs(), CONFIG.proxy());
 
         ReportSubmissionResult result = service.submit(

@@ -15,6 +15,11 @@ reports:
   min-account-age-hours: 1
   # When true, players must include a reason on /report. Reason can still be entered via the GUI.
   require-reason: false
+  # Dev / testing flag. When true, /report accepts any player name (online or not) and
+  # falls back to OfflinePlayer for the UUID + display name. Leave false in production.
+  allow-offline-players: false
+  # Dev / testing flag. When true, players can /report themselves. Leave false in production.
+  allow-self-reports: false
 
 handle:
   # When a staff clicks a category in /rh and no reports exist, the slot swaps to iron bars

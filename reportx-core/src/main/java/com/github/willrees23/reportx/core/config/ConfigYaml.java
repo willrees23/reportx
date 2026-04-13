@@ -22,7 +22,9 @@ public record ConfigYaml(
             int cooldownSeconds,
             int maxPerDay,
             int minAccountAgeHours,
-            boolean requireReason
+            boolean requireReason,
+            boolean allowOfflinePlayers,
+            boolean allowSelfReports
     ) {
     }
 

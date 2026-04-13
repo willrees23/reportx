@@ -41,6 +41,8 @@ class ConfigLoaderTest {
         assertThat(snapshot.config().dedup().enabled()).isTrue();
         assertThat(snapshot.config().dedup().windowSeconds()).isEqualTo(300);
         assertThat(snapshot.config().reports().cooldownSeconds()).isEqualTo(60);
+        assertThat(snapshot.config().reports().allowOfflinePlayers()).isFalse();
+        assertThat(snapshot.config().reports().allowSelfReports()).isFalse();
         assertThat(snapshot.config().gui().clickSound().enabled()).isTrue();
         assertThat(snapshot.config().gui().clickSound().sound()).isEqualTo("UI_BUTTON_CLICK");
         assertThat(snapshot.config().handle().emptyQueueRevertSeconds()).isEqualTo(2);
