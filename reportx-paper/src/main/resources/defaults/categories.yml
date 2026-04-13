@@ -1,0 +1,32 @@
+# ReportX — report categories.
+# Up to 5 categories supported. Each id is a stable key referenced internally.
+categories:
+  - id: hacking
+    display: "<red>Hacking</red>"
+    icon: IRON_SWORD
+    lore:
+      - "<gray>Reports about cheating, hacks, exploits."
+    priority: 100
+    evidence-window-seconds: 60
+  - id: chat
+    display: "<yellow>Chat</yellow>"
+    icon: PAPER
+    lore:
+      - "<gray>Reports about spam, toxicity, harassment."
+    priority: 50
+    evidence-window-seconds: 30
+  - id: other
+    display: "<gray>Other</gray>"
+    icon: BOOK
+    lore:
+      - "<gray>Anything that doesn't fit the above."
+    priority: 25
+    evidence-window-seconds: 30
+
+# Shown in the staff /rh category picker when a category has no unhandled reports.
+empty-slot:
+  icon: IRON_BARS
+  display: "<red>No reports available</red>"
+  lore:
+    - "<gray>Check back later."
+  sound: BLOCK_NOTE_BLOCK_BASS

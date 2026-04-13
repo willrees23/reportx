@@ -1,0 +1,33 @@
+# ReportX — reputation tiers.
+# Reputation is the number of reports filed against a target, decayed over time.
+decay:
+  enabled: true
+  half-life-days: 30
+
+tiers:
+  - id: outstanding
+    min-reports: 0
+    max-reports: 0
+    display: "<green>Outstanding</green>"
+    description: "This player has had no reports against their account."
+  - id: good
+    min-reports: 1
+    max-reports: 2
+    display: "<dark_green>Good</dark_green>"
+    description: "This player has had {count} report(s) against their account."
+  - id: neutral
+    min-reports: 3
+    max-reports: 5
+    display: "<yellow>Neutral</yellow>"
+    description: "This player has had {count} reports against their account."
+  - id: questionable
+    min-reports: 6
+    max-reports: 10
+    display: "<gold>Questionable</gold>"
+    description: "This player has had {count} reports against their account."
+  - id: bad
+    min-reports: 11
+    # max-reports of -1 means unbounded.
+    max-reports: -1
+    display: "<red>Bad</red>"
+    description: "This player has had {count} reports against their account."

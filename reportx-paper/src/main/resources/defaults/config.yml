@@ -1,0 +1,51 @@
+# ReportX — main behaviour configuration.
+# Hot-reload via /reportx reload (admin only). Restart-safe: changes apply on next file load.
+
+dedup:
+  # Group multiple reports of the same target into one Case when they fall inside the window.
+  enabled: true
+  window-seconds: 300
+  same-category-required: true
+  # If true, new matching reports continue to merge into a Case after it has been claimed.
+  merge-after-claim: true
+
+reports:
+  cooldown-seconds: 60
+  max-per-day: 20
+  min-account-age-hours: 1
+  # When true, players must include a reason on /report. Reason can still be entered via the GUI.
+  require-reason: false
+
+handle:
+  # When a staff clicks a category in /rh and no reports exist, the slot swaps to iron bars
+  # for this many seconds before reverting.
+  empty-queue-revert-seconds: 2
+  # Releases a Case back to the queue if no activity from the claimer for this many minutes.
+  stale-claim-reclaim-minutes: 15
+
+gui:
+  click-sound:
+    # Plays on valid clicks only (action buttons, category picks, nav).
+    # Does not play on fillers, disabled slots, or the empty-queue iron bars.
+    enabled: true
+    sound: UI_BUTTON_CLICK
+    volume: 1.0
+    pitch: 1.0
+
+evidence:
+  # If true, evidence content must contain a URL.
+  require-url: false
+
+logs:
+  buffer:
+    chat-max-messages: 200
+    chat-retention-hours: 24
+    commands-max: 100
+    commands-retention-hours: 24
+    connections-retention-days: 30
+  persist: true
+  rolling: true
+
+proxy:
+  # Set true on multi-server networks. Requires messaging.transport=redis.
+  enabled: false
