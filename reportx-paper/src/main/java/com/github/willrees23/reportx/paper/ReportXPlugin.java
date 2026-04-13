@@ -2,6 +2,7 @@ package com.github.willrees23.reportx.paper;
 
 import com.github.willrees23.reportx.paper.modules.AuditModule;
 import com.github.willrees23.reportx.paper.modules.ConfigModule;
+import com.github.willrees23.reportx.paper.modules.LogBufferModule;
 import com.github.willrees23.reportx.paper.modules.MessagingModule;
 import com.github.willrees23.reportx.paper.modules.StorageModule;
 import com.github.willrees23.solo.SoloPlugin;
@@ -15,5 +16,6 @@ public final class ReportXPlugin extends SoloPlugin {
         manager.register(new StorageModule());
         manager.register(new MessagingModule());
         manager.register(new AuditModule());
+        manager.register(new LogBufferModule());
     }
 }
